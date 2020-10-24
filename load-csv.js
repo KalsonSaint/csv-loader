@@ -16,7 +16,7 @@ const extractColumns = (data, columnNames) => {
   return extracted; 
 }
 
-const loadCSV = (filename, { converters = {}, dataColumns = [], labelColumns = [], shuffle = true }) => {
+const loadCSV = (filename, { converters = {}, dataColumns = [], labelColumns = [], shuffle = true, splitTest = false }) => {
 	let data = fs.readFileSync(filename, {encoding:'utf8'});
 	data = data.split('\n').map(row => row.split(','));
 	data = data.map(row => _.dropRightWhile(row, val => val === ''));
@@ -43,13 +43,24 @@ const loadCSV = (filename, { converters = {}, dataColumns = [], labelColumns = [
 	data.shift();
 	labels.shift();
 
+	// shuffle data
 	if(shuffle){
 		data = shuffleSeed.shuffle(data, 'phrase');
-		labels = shuffleSeed.shuffle(labels, 'phrase')
+		labels = shuffleSeed.shuffle(labels, 'phrase');
 	}
 
-	console.log(data);
-	console.log(labels);
+	//splitTest
+	if(splitTest){
+		const trainSize = _.isNumber(splitTest) ? splitTest : Math.floor(data.length/2);
+		return {
+			features: data.slice(0, trainSize),
+			labels: labels.slice(0, trainSize),
+			testFeatures: data.slice(trainSize),
+			testLabels: labels.slice(trainSize),
+		}
+	} else {
+		return { features: data, labels }
+	}
 }
 
 /**
@@ -57,11 +68,19 @@ const loadCSV = (filename, { converters = {}, dataColumns = [], labelColumns = [
  * args 1: filename(.csv)
  * args 2: options(object)
  */
-loadCSV('data.csv', {
+const { features, labels, testFeatures, testLabels } = loadCSV('data.csv', {
 	dataColumns: ['height', 'value'],
 	labelColumns: ['passed'],
 	shuffle: true,
+	splitTest: 1, // value can be boolean or number
 	converters: {
 		passed: val => val === 'TRUE'		// (val === 'TRUE' ? 1 : 0)
 	}
-})
+});
+
+console.log(`
+	Features: ${features},
+	Labels: ${labels},
+	Test Features: ${testFeatures},
+	Test Labels: ${testLabels}
+`)
